@@ -1,10 +1,8 @@
 // models/user.js
 const pool = require('../db');
-const bcrypt = require('bcryptjs');
 
-// createUser: stores hashed password and OTP fields
-async function createUser(name, email, password, role, phone, otp, otpExpiry, dob) {
-  const hashedPassword = await bcrypt.hash(password, 10);
+// createUser: stores already-hashed password and OTP fields
+async function createUser(name, email, hashedPassword, role, phone, otp, otpExpiry, dob) {
   const result = await pool.query(
     `INSERT INTO users
       (name, email, password_hash, role, phone, otp, otp_expiry, dob, is_verified, otp_attempts, created_at)
@@ -43,7 +41,6 @@ async function deleteUser(userId) {
   await pool.query(`DELETE FROM users WHERE id = $1`, [userId]);
 }
 
-// set reset OTP (for forgot password)
 async function setResetOTP(email, otp, otpExpiry) {
   await pool.query(
     `UPDATE users SET otp = $1, otp_expiry = $2, updated_at = NOW() WHERE email = $3`,
@@ -51,7 +48,6 @@ async function setResetOTP(email, otp, otpExpiry) {
   );
 }
 
-// verify reset OTP
 async function verifyResetOTP(email, otp) {
   const result = await pool.query(
     `SELECT otp, otp_expiry FROM users WHERE email = $1`,
@@ -65,15 +61,13 @@ async function verifyResetOTP(email, otp) {
   return true;
 }
 
-async function updatePassword(email, newPassword) {
-  const hashedPassword = await bcrypt.hash(newPassword, 10);
+async function updatePassword(email, hashedPassword) {
   await pool.query(
     `UPDATE users SET password_hash = $1, otp = NULL, otp_expiry = NULL, updated_at = NOW() WHERE email = $2`,
     [hashedPassword, email]
   );
 }
 
-// delete unverified by email & phone
 async function deleteUnverifiedUserByEmailAndPhone(email, phone) {
   const result = await pool.query(
     `DELETE FROM users WHERE email = $1 AND phone = $2 AND is_verified = false RETURNING id`,
@@ -82,7 +76,6 @@ async function deleteUnverifiedUserByEmailAndPhone(email, phone) {
   return result.rowCount > 0;
 }
 
-// helper used by resendVerificationOtp
 async function setOtpForUser(userId, otp, otpExpiry) {
   await pool.query(
     `UPDATE users SET otp = $1, otp_expiry = $2, otp_attempts = 0, updated_at = NOW() WHERE id = $3`,

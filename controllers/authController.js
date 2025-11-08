@@ -1,6 +1,6 @@
 // controllers/authController.js
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const {
   createUser,
   findUserByEmail,
@@ -17,11 +17,15 @@ const {
 const sendOtpEmail = require('../utils/email');
 require('dotenv').config();
 
+// Helper: hash password using SHA-256
+const hashPassword = (password) => {
+  return crypto.createHash('sha256').update(password).digest('hex');
+};
+
 // ------------------ Registration with OTP logic ------------------
 const register = async (req, res) => {
   const { name, email, password, role = 'tourist', phone, dob } = req.body;
 
-  // Basic validations
   if (!name || !email || !password || !phone || !dob) {
     return res.status(400).json({ error: 'name, email, password, phone and dob are required' });
   }
@@ -62,17 +66,18 @@ const register = async (req, res) => {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
+    // Hash password using SHA-256
+    const hashedPassword = hashPassword(password);
+
     // Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-    // Create user with OTP (createUser handles hashing)
-    const user = await createUser(name, email, password, role, phone, otp, otpExpiry, dob);
+    // Create user with hashed password and OTP
+    const user = await createUser(name, email, hashedPassword, role, phone, otp, otpExpiry, dob);
 
-    // Send OTP email (don't block on failure)
-    sendOtpEmail(email, otp).catch(e => {
-      console.error('OTP email failed:', e);
-    });
+    // Send OTP email
+    sendOtpEmail(email, otp).catch(e => console.error('OTP email failed:', e));
 
     return res.status(201).json({
       message: 'User registered. Please verify your email using the OTP sent to your email address.'
@@ -101,7 +106,6 @@ const verifyOtp = async (req, res) => {
       await incrementOtpAttempts(user.id, attempts);
 
       if (attempts >= 3) {
-        // delete unverified user after 3 failed attempts
         await deleteUser(user.id);
         return res.status(400).json({ error: 'Maximum OTP attempts reached. Your registration has been cancelled.' });
       }
@@ -130,8 +134,9 @@ const login = async (req, res) => {
       return res.status(403).json({ error: 'Please verify your email before logging in.' });
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-    if (!isPasswordValid) {
+    // Compare SHA-256 hashes
+    const hashedPassword = hashPassword(password);
+    if (hashedPassword !== user.password_hash) {
       return res.status(400).json({ error: 'Invalid email or password' });
     }
 
@@ -162,7 +167,6 @@ const resendVerificationOtp = async (req, res) => {
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
     await setOtpForUser(user.id, otp, otpExpiry);
-
     await sendOtpEmail(email, otp);
 
     return res.json({ message: 'Verification OTP sent to your email' });
@@ -224,7 +228,8 @@ const resetPassword = async (req, res) => {
     const isValid = await verifyResetOTP(email, otp);
     if (!isValid) return res.status(400).json({ error: 'Invalid or expired OTP.' });
 
-    await updatePassword(email, newPassword);
+    const hashedNewPassword = hashPassword(newPassword);
+    await updatePassword(email, hashedNewPassword);
 
     return res.json({ message: 'Password reset successful! Please login with your new password.' });
   } catch (err) {

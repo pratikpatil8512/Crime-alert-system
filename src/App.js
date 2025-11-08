@@ -7,6 +7,7 @@ import Unauthorized from "./pages/Unauthorized";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ReportCrime from "./pages/ReportCrime";
 import RoleProtectedRoute from "./components/RoleProtectedRoute";
+import MapPage from './pages/Map';
 
 import { isAuthenticated } from "./utils/auth";
 
@@ -35,6 +36,7 @@ function App() {
             </RoleProtectedRoute>
           }
         />
+        <Route path="/map" element={<MapPage />} />
 
         <Route path="/verify-email" element={<VerifyEmail />} />
 

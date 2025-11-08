@@ -3,6 +3,8 @@ import API from '../utils/api';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import StatCard from '../components/StatCard';
+import DashboardMap from '../components/DashboardMap';
+import NearbyStats from '../components/NearbyStats';
 import {
   PieChart,
   Pie,
@@ -192,7 +194,8 @@ export default function Dashboard() {
                 </PieChart>
               </ResponsiveContainer>
             </div>
-
+            <DashboardMap />
+            <NearbyStats location={userLocation} />
             {/* 📊 Bar Chart */}
             <div className="bg-white p-6 rounded-xl shadow-md">
               <h3 className="text-lg font-semibold text-gray-700 mb-4">
@@ -235,6 +238,7 @@ export default function Dashboard() {
                   <Popup>You are here</Popup>
                 </CircleMarker>
               )}
+              
 
               {/* 🔴 Crimes Nearby */}
               {crimes.map((crime, idx) => (
